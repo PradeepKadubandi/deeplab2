@@ -320,6 +320,7 @@ class SegmentationDecoder(object):
     }
     if decode_groundtruth_label:
       self._keys_to_features[common.KEY_ENCODED_LABEL] = string_feature
+      self._keys_to_features[common.KEY_LABEL_FORMAT] = string_feature
     if self._is_video_dataset:
       self._keys_to_features[common.KEY_SEQUENCE_ID] = string_feature
       self._keys_to_features[common.KEY_FRAME_ID] = string_feature
@@ -347,11 +348,18 @@ class SegmentationDecoder(object):
     image.set_shape([None, None, 3])
     return image
 
-  def _decode_label(self, parsed_tensors, label_key):
+  def _decode_label(self, parsed_tensors, label_key, label_format = "raw"):
     """Decodes segmentation label under label_key from parsed tensors."""
     if self._is_panoptic_dataset:
-      flattened_label = tf.io.decode_raw(
-          parsed_tensors[label_key], out_type=tf.int32)
+      if label_format == "raw":
+        flattened_label = tf.io.decode_raw(
+            parsed_tensors[label_key], out_type=tf.int32)
+      elif label_format == "png":
+        flattened_label = tf.io.decode_png(
+            parsed_tensors[label_key], channels=1, dtype=tf.uint16)
+        flattened_label = tf.cast(flattened_label, dtype=tf.int32)
+      else:
+        raise ValueError("Unknown label format: {}".format(label_format))
       label_shape = tf.stack([
           parsed_tensors[common.KEY_IMAGE_HEIGHT],
           parsed_tensors[common.KEY_IMAGE_WIDTH], 1
@@ -378,8 +386,12 @@ class SegmentationDecoder(object):
     }
     return_dict['label'] = None
     if self._decode_groundtruth_label:
+      # label_format = parsed_tensors[common.KEY_LABEL_FORMAT]
+      # assert label_format in ["raw", "png"], f"Unknown label format: {label_format}"
+      # TODO: fix this, I couldn't get the above 2 lines to work, so for now hardcoding for my scenario.
+      label_format = "png"
       return_dict['label'] = self._decode_label(parsed_tensors,
-                                                common.KEY_ENCODED_LABEL)
+                                                common.KEY_ENCODED_LABEL, label_format)
     if self._is_video_dataset:
       return_dict['sequence'] = parsed_tensors[common.KEY_SEQUENCE_ID]
     if self._use_two_frames:
