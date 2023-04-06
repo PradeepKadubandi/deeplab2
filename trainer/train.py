@@ -14,12 +14,15 @@
 # limitations under the License.
 
 """This file contains code to run a model."""
+import sys
+print (sys.path)
 
 import os
 from absl import app
 from absl import flags
 from absl import logging
 import tensorflow as tf
+import time
 
 from google.protobuf import text_format
 from deeplab2 import config_pb2
@@ -62,15 +65,19 @@ FLAGS = flags.FLAGS
 
 
 def main(_):
-  logging.info('Reading the config file.')
-  with tf.io.gfile.GFile(FLAGS.config_file, 'r') as proto_file:
-    config = text_format.ParseLines(proto_file, config_pb2.ExperimentOptions())
+  start = time.time()
+  try:
+    logging.info('Reading the config file.')
+    with tf.io.gfile.GFile(FLAGS.config_file, 'r') as proto_file:
+        config = text_format.ParseLines(proto_file, config_pb2.ExperimentOptions())
 
-  logging.info('Starting the experiment.')
-  combined_model_dir = os.path.join(FLAGS.model_dir, config.experiment_name)
-  train_lib.run_experiment(FLAGS.mode, config, combined_model_dir, FLAGS.master,
-                           FLAGS.num_gpus)
-
+    logging.info('Starting the experiment.')
+    combined_model_dir = os.path.join(FLAGS.model_dir, config.experiment_name)
+    train_lib.run_experiment(FLAGS.mode, config, combined_model_dir, FLAGS.master,
+                            FLAGS.num_gpus)
+  finally:
+    end = time.time()
+    print(f"Elapsed time: {end - start} seconds")
 
 if __name__ == '__main__':
   app.run(main)
