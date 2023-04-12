@@ -117,8 +117,8 @@ train_dataset_options {
   # file_pattern: "gs://waymo_open_dataset_v_1_4_2/individual_files/training/segment-10017090168044687777_6380_000_6400_000_with_camera_labels.tfrecord" # TODO: Need to set this right.
   file_pattern: "/home/pkadubandi/data/waymo-open-dataset/training/v_2_0_0/image_with_seg_tfrecords/*.tfrecord" # TODO: Need to set this right.
   # file_pattern: "gs://waymo_open_dataset_v_1_4_0/individual_files/training/segment-10017090168044687777_6380_000_6400_000_with_camera_labels.tfrecord"
-  crop_size: 1280 # TODO: This is the exact size as the image. May need to reduce the size?
-  crop_size: 1920,
-  batch_size: 1 # TODO: Need to set this right.
+  crop_size: 640 # On my machine with 2 GPUS of 16 GB memory, at full resolution (1280 x 1920), I get OOM error for batch_size = 4 when using resnet50 backbone.
+  crop_size: 960,
+  batch_size: 8,
 }
 # TODO: Eval and continous eval are not supported yet.
