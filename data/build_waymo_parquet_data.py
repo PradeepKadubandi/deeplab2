@@ -51,12 +51,14 @@ Example to run the scipt:
 import math
 import os
 
-from typing import Iterator, Sequence, Tuple, Optional, Union
+from typing import Iterator, List, Sequence, Tuple, Optional, Union
 
 from absl import app
 from absl import flags
 from absl import logging
 import numpy as np
+from tqdm import tqdm
+from dask.distributed import Client as DDClient, LocalCluster
 
 from PIL import Image
 
@@ -72,9 +74,9 @@ flags.DEFINE_string('step_root', None, 'STEP dataset root folder.')
 
 flags.DEFINE_string('output_dir', None,
                     'Path to save converted TFRecord of TensorFlow examples.')
-# flags.DEFINE_bool(
-#     'use_two_frames', False, 'Flag to separate between 1 frame '
-#     'per TFExample or 2 consecutive frames per TFExample.')
+flags.DEFINE_bool(
+    'use_two_frames', False, 'Flag to separate between 1 frame '
+    'per TFExample or 2 consecutive frames per TFExample.')
 
 _PANOPTIC_LABEL_FORMAT = 'png'
 # _NUM_SHARDS = 10
@@ -86,6 +88,9 @@ _PANOPTIC_LABEL_FORMAT = 'png'
 _TF_RECORD_PATTERN = '%s.tfrecord'
 # _FRAME_ID_PATTERN = '%06d'
 
+def get_context_names(step_root: str, tag: str) -> List[str]:
+  paths = tf.io.gfile.glob(f'{step_root}/{tag}/*.parquet')
+  return list(map(lambda path: os.path.splitext(os.path.basename(path))[0], paths))
 
 def read(step_root: str, tag: str) -> dd.DataFrame:
   """Creates a Dask DataFrame for the component specified by its tag."""
@@ -178,8 +183,11 @@ def _convert_dataset(step_root: str,
 
   image_w_seg_df = v2.merge(cam_image_df, cam_seg_df)
 
-  context_names = image_w_seg_df['key.segment_context_name'].unique().compute()
-  for context_name in context_names:
+  # This is too costly when using the cloud storage and entire dataset
+  # context_names = image_w_seg_df['key.segment_context_name'].unique().compute()
+  context_names = get_context_names(step_root, 'camera_image')
+
+  for context_name in tqdm(context_names):
     group = image_w_seg_df[image_w_seg_df['key.segment_context_name'] == context_name]
     shard_filename = _TF_RECORD_PATTERN % (context_name)
     output_filename = os.path.join(output_dir, shard_filename)
@@ -202,4 +210,9 @@ def main(argv: Sequence[str]) -> None:
 
 
 if __name__ == '__main__':
+  cluster = LocalCluster()
+  dask_client = DDClient(cluster)
+  print (f"Dashboard link: {dask_client.dashboard_link}")
+  print ("Dask Scheduler Info: ")
+  print (dask_client.scheduler_info())
   app.run(main)
