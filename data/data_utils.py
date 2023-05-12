@@ -17,6 +17,7 @@
 
 from collections import abc
 import io
+import zlib
 
 import numpy as np
 from PIL import Image
@@ -157,6 +158,9 @@ def create_features(image_data,
     if len(label_data) != expected_label_size:
       raise ValueError('Expects raw label data length %d, gets %d' %
                        (expected_label_size, len(label_data)))
+  elif label_format == 'zlib':
+    # zlib compressed - dtype is assumed to be int32. Nothing to check.
+    pass
   else:
     raise ValueError('Unsupported label format: %s' % label_format)
 
@@ -356,8 +360,11 @@ class SegmentationDecoder(object):
             parsed_tensors[label_key], out_type=tf.int32)
       elif label_format == "png":
         flattened_label = tf.io.decode_png(
-            parsed_tensors[label_key], channels=1, dtype=tf.uint16)
+            parsed_tensors[label_key], channels=1, dtype=tf.uint32)
         flattened_label = tf.cast(flattened_label, dtype=tf.int32)
+      elif label_format == "zlib":
+        flattened_label = tf.io.decode_compressed(parsed_tensors[label_key], compression_type="ZLIB")
+        flattened_label = tf.io.parse_tensor(flattened_label, out_type=tf.int32)
       else:
         raise ValueError("Unknown label format: {}".format(label_format))
       label_shape = tf.stack([
@@ -386,10 +393,10 @@ class SegmentationDecoder(object):
     }
     return_dict['label'] = None
     if self._decode_groundtruth_label:
-      # label_format = parsed_tensors[common.KEY_LABEL_FORMAT]
-      # assert label_format in ["raw", "png"], f"Unknown label format: {label_format}"
+      # label_format = parsed_tensors[common.KEY_LABEL_FORMAT].eval().decode()
+      # assert label_format in ["raw", "png", "zlib"], f"Unknown label format: {label_format}"
       # TODO: fix this, I couldn't get the above 2 lines to work, so for now hardcoding for my scenario.
-      label_format = "png"
+      label_format = "zlib"
       return_dict['label'] = self._decode_label(parsed_tensors,
                                                 common.KEY_ENCODED_LABEL, label_format)
     if self._is_video_dataset:
@@ -405,7 +412,7 @@ class SegmentationDecoder(object):
           parsed_tensors, common.KEY_ENCODED_NEXT_IMAGE)
       if self._decode_groundtruth_label:
         return_dict['next_label'] = self._decode_label(
-            parsed_tensors, common.KEY_ENCODED_NEXT_LABEL)
+            parsed_tensors, common.KEY_ENCODED_NEXT_LABEL, label_format="zlib")
     if self._is_depth_dataset and self._decode_groundtruth_label:
       return_dict['depth'] = self._decode_label(
           parsed_tensors, common.KEY_ENCODED_DEPTH)

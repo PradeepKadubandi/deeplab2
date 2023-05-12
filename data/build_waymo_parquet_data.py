@@ -58,6 +58,7 @@ Example to run the scipt:
 import asyncio
 import math
 import os
+import zlib
 
 from typing import Iterator, List, Sequence, Tuple, Optional, Union
 from collections import OrderedDict
@@ -91,7 +92,6 @@ flags.DEFINE_bool(
 flags.DEFINE_bool(
     'is_testing_data', None, 'Flag to specify if the data is testing data (no labels available).')
 
-_PANOPTIC_LABEL_FORMAT = 'png'
 _TF_RECORD_PATTERN = '%s.tfrecord'
 
 def get_context_names(root_dir: str, tag: str) -> List[str]:
@@ -168,7 +168,8 @@ def _convert_dataset(root_dir: str,
 def process_context_name(root_dir, output_dir, context_name, is_for_training, is_for_testing):
     shard_filename = f'{context_name}.tfrecord'
     output_filename = os.path.join(output_dir, shard_filename)
-    if (os.path.exists(output_filename)):
+    if (tf.io.gfile.exists(output_filename)):
+      print (f"Skipping context {context_name} as the destination outputfile {output_filename} already exists.")
       return
     
     context_data = read(root_dir=root_dir, tag='camera_image', context_name=context_name)    
@@ -176,10 +177,12 @@ def process_context_name(root_dir, output_dir, context_name, is_for_training, is
         cam_seg_df = read(root_dir=root_dir, tag='camera_segmentation', context_name=context_name)
         context_data = v2.merge(context_data, cam_seg_df)
 
+    print (f"context_name: {context_name}:: # of records in context_data: {len(context_data)}")
     tf_records = list()
     
     groups = context_data.groupby(["[CameraSegmentationLabelComponent].sequence_id"])
     for sequence_id, group_by_sequence in groups:
+        print (f"context_name: {context_name}:: start processing sequence: {sequence_id}, # of records in sequence: {len(group_by_sequence)}")
         timestamps = pd.unique(group_by_sequence["key.frame_timestamp_micros"].sort_values())
         next_timestamp_map = dict(zip(timestamps[:-1], timestamps[1:]))
         next_timestamp_map[timestamps[-1]] = timestamps[-1] # set the last timestamp as next to itself - to duplicate the last row as next frame
@@ -196,6 +199,7 @@ def process_context_name(root_dir, output_dir, context_name, is_for_training, is
                 cam_seg_label = v2.CameraSegmentationLabelComponent.from_dict(row)
                 label_protos[row_key] = cam_seg_label
                 
+        print (f"context_name: {context_name}:: # of records in image_protos: {len(image_protos)}, # of records in label_protos: {len(label_protos)}")
         if not is_for_testing:
             panoptic_labels, is_tracked_masks, num_cameras_covered, panoptic_label_divisor = camera_segmentation_utils.decode_multi_frame_panoptic_labels_from_segmentation_labels(
                 segmentation_proto_list=list(label_protos.values()),
@@ -222,11 +226,15 @@ def process_context_name(root_dir, output_dir, context_name, is_for_training, is
             next_label_data=None
             
             if not is_for_testing:
+                def encode_label(label):
+                    serialized = tf.io.serialize_tensor(label.astype(np.int32))
+                    compressed = zlib.compress(serialized.numpy())
+                    return compressed
                 curr_panoptic_label, curr_is_tracked_mask, curr_num_cameras_covered = label_values[row_key]
                 next_panoptic_label, next_is_tracked_mask, next_num_cameras_covered = label_values[next_row_key]
-                label_data=curr_panoptic_label.tobytes()
-                label_format="raw"
-                next_label_data=next_panoptic_label.tobytes()
+                label_data=encode_label(curr_panoptic_label)
+                label_format="zlib"
+                next_label_data=encode_label(next_panoptic_label)
                 
             tf_record = data_utils.create_video_and_depth_tfexample(
                 image_data=image_data,
@@ -242,6 +250,7 @@ def process_context_name(root_dir, output_dir, context_name, is_for_training, is
                 depth_format=None
             )
             tf_records.append(tf_record)
+        print (f"context_name: {context_name}:: finish processing sequence: {sequence_id}, # of records collected so-far: {len(tf_records)}")
 
     with tf.io.TFRecordWriter(output_filename) as tfrecord_writer:
         for example in tf_records:
