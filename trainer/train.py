@@ -18,6 +18,7 @@ import sys
 print (sys.path)
 
 import os
+import shutil
 from absl import app
 from absl import flags
 from absl import logging
@@ -73,6 +74,9 @@ def main(_):
 
     logging.info('Starting the experiment.')
     combined_model_dir = os.path.join(FLAGS.model_dir, config.experiment_name)
+    os.makedirs(combined_model_dir, exist_ok=True)
+    if not os.path.exists(os.path.join(combined_model_dir, FLAGS.config_file)):
+        shutil.copy(FLAGS.config_file, combined_model_dir)
     train_lib.run_experiment(FLAGS.mode, config, combined_model_dir, FLAGS.master,
                             FLAGS.num_gpus)
   finally:
