@@ -59,6 +59,7 @@ import asyncio
 import math
 import os
 import zlib
+from datetime import datetime
 
 from typing import Iterator, List, Sequence, Tuple, Optional, Union
 from collections import OrderedDict
@@ -102,7 +103,7 @@ def get_context_names(root_dir: str, tag: str) -> List[str]:
 def read(root_dir: str, tag: str, context_name: str) -> dd.DataFrame:
   """Creates a Dask DataFrame for the component specified by its tag."""
   paths = tf.io.gfile.glob(f'{root_dir}/{tag}/{context_name}.parquet')
-  return pd.read_parquet(paths)
+  return dd.read_parquet(paths).compute()
 
 # def _create_panoptic_tfexample(dataframe_row: dd.Series,
 #                                use_two_frames: bool,
@@ -156,9 +157,18 @@ def _convert_dataset(root_dir: str,
     is_testing_data: Boolean, whether the data is for testing.
   """
   context_names = get_context_names(root_dir, 'camera_image')
-  print (f'Found {len(context_names)} context names.')
+  print (f'{datetime.now()}: Found {len(context_names)} context names in root dir {root_dir}.')
+
+  MAX_CONTEXTS_TO_PROCESS = 800
+  context_names = context_names[:MAX_CONTEXTS_TO_PROCESS]
+  print (f'{datetime.now()}: Processing {len(context_names)} context names.')
+
+  known_bad_contexts = set(["10724020115992582208_7660_400_7680_400"])
 
   for context_name in tqdm(context_names):
+    if context_name in known_bad_contexts:
+        print (f"{datetime.now()}: Skipping known bad context: {context_name}")
+        continue
     process_context_name(root_dir=root_dir, 
                          output_dir=output_dir, 
                          context_name=context_name, 
@@ -171,6 +181,8 @@ def process_context_name(root_dir, output_dir, context_name, is_for_training, is
     if (tf.io.gfile.exists(output_filename)):
       print (f"Skipping context {context_name} as the destination outputfile {output_filename} already exists.")
       return
+
+    print (f"{datetime.now()}: Processing context: {context_name}")
     
     context_data = read(root_dir=root_dir, tag='camera_image', context_name=context_name)    
     if not is_for_testing:
