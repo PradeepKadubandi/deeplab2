@@ -159,29 +159,33 @@ def _convert_dataset(root_dir: str,
   context_names = get_context_names(root_dir, 'camera_image')
   print (f'{datetime.now()}: Found {len(context_names)} context names in root dir {root_dir}.')
 
-  MAX_CONTEXTS_TO_PROCESS = 800
-  context_names = context_names[:MAX_CONTEXTS_TO_PROCESS]
-  print (f'{datetime.now()}: Processing {len(context_names)} context names.')
+  existing_output_paths = set(tf.io.gfile.glob(f'{output_dir}/*.tfrecord'))
+  processed_contexts = set(map(lambda path: os.path.splitext(os.path.basename(path))[0], existing_output_paths))
+  if len(processed_contexts) > 0:
+    print (f'{datetime.now()}: Found {len(processed_contexts)} context names already in output destination: {processed_contexts}, skipping them.')
 
-  known_bad_contexts = set(["10724020115992582208_7660_400_7680_400"])
+  to_process_context_names = []
+  for context_name in context_names:
+    if context_name not in processed_contexts:
+      shard_filename = f'{context_name}.tfrecord'
+      output_filename = os.path.join(output_dir, shard_filename)
+      to_process_context_names.append((context_name, output_filename))
 
-  for context_name in tqdm(context_names):
-    if context_name in known_bad_contexts:
-        print (f"{datetime.now()}: Skipping known bad context: {context_name}")
-        continue
-    process_context_name(root_dir=root_dir, 
-                         output_dir=output_dir, 
-                         context_name=context_name, 
-                         is_for_training=is_training_data, 
-                         is_for_testing=is_testing_data)
+  MAX_CONTEXTS_TO_PROCESS = 800 # used for testing with a smaller number.
+  to_process_context_names = to_process_context_names[:MAX_CONTEXTS_TO_PROCESS]
+  print (f'{datetime.now()}: Processing {len(to_process_context_names)} context names.')
 
-def process_context_name(root_dir, output_dir, context_name, is_for_training, is_for_testing):
-    shard_filename = f'{context_name}.tfrecord'
-    output_filename = os.path.join(output_dir, shard_filename)
-    if (tf.io.gfile.exists(output_filename)):
-      print (f"Skipping context {context_name} as the destination outputfile {output_filename} already exists.")
-      return
+  for (context_name, output_filename) in tqdm(to_process_context_names):
+    try:
+      process_context_name(root_dir=root_dir, 
+                          output_filename=output_filename, 
+                          context_name=context_name, 
+                          is_for_training=is_training_data, 
+                          is_for_testing=is_testing_data)
+    except Exception as e:
+      print (f"{datetime.now()}: Error processing context {context_name}: {e}")
 
+def process_context_name(root_dir, output_filename, context_name, is_for_training, is_for_testing):
     print (f"{datetime.now()}: Processing context: {context_name}")
     
     context_data = read(root_dir=root_dir, tag='camera_image', context_name=context_name)    
@@ -267,6 +271,7 @@ def process_context_name(root_dir, output_dir, context_name, is_for_training, is
     with tf.io.TFRecordWriter(output_filename) as tfrecord_writer:
         for example in tf_records:
             tfrecord_writer.write(example.SerializeToString())
+    print (f"{datetime.now()}: Finished Processing context: {context_name}")
 
 # def process_context_name(step_root, output_dir, use_two_frames, is_testing, context_name):
 #     shard_filename = _TF_RECORD_PATTERN % (context_name)
