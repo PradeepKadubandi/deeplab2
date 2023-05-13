@@ -217,12 +217,27 @@ def process_context_name(root_dir, output_filename, context_name, is_for_trainin
                 
         print (f"context_name: {context_name}:: # of records in image_protos: {len(image_protos)}, # of records in label_protos: {len(label_protos)}")
         if not is_for_testing:
-            panoptic_labels, is_tracked_masks, num_cameras_covered, panoptic_label_divisor = camera_segmentation_utils.decode_multi_frame_panoptic_labels_from_segmentation_labels(
-                segmentation_proto_list=list(label_protos.values()),
-                remap_to_global=True,
-                remap_to_sequential=is_for_training,
-                new_panoptic_label_divisor=100000
-            )
+            def get_remapped_or_original_labels(label_protos, is_for_training):
+              try:
+                panoptic_labels, is_tracked_masks, num_cameras_covered, panoptic_label_divisor = camera_segmentation_utils.decode_multi_frame_panoptic_labels_from_segmentation_labels(
+                    segmentation_proto_list=list(label_protos.values()),
+                    remap_to_global=True,
+                    remap_to_sequential=is_for_training,
+                    new_panoptic_label_divisor=100000
+                )
+              except ValueError as e:
+                # Look at this issue: https://github.com/waymo-research/waymo-open-dataset/issues/668
+                # This is a workaround for the above issue.
+                print (f"Error decoding panoptic labels: {e}, falling back to local labels.")
+                panoptic_labels, is_tracked_masks, num_cameras_covered, panoptic_label_divisor = camera_segmentation_utils.decode_multi_frame_panoptic_labels_from_segmentation_labels(
+                    segmentation_proto_list=list(label_protos.values()),
+                    remap_to_global=False,
+                    remap_to_sequential=False,
+                    new_panoptic_label_divisor=100000
+                )
+              return (panoptic_labels, is_tracked_masks, num_cameras_covered, panoptic_label_divisor)
+
+            (panoptic_labels, is_tracked_masks, num_cameras_covered, panoptic_label_divisor) = get_remapped_or_original_labels(label_protos, is_for_training)
             for index, row_key in enumerate(label_protos):
                 label_values[row_key] = (panoptic_labels[index], is_tracked_masks[index], num_cameras_covered[index])
                 
