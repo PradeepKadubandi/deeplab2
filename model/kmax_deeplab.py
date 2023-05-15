@@ -101,6 +101,12 @@ class KMaXDeepLab(tf.keras.Model):
       num_mask_slots = 128
       use_auxiliary_semantic_decoder = True
       transformer_decoder_drop_path_keep_prob = 1.0
+    elif 'wod_pvps' in dataset_descriptor.dataset_name:
+      logging.info('kMaX configs for WOD_PVPS is used.')
+      high_resolution_output_stride = 4
+      num_mask_slots = 128
+      use_auxiliary_semantic_decoder = True
+      transformer_decoder_drop_path_keep_prob = 1.0
     else:
       logging.info('kMaX configs for COCO is used for untested datasets.')
       high_resolution_output_stride = 4
@@ -187,6 +193,7 @@ class KMaXDeepLab(tf.keras.Model):
     # preprocessing because it is faster on TPUs than on host CPUs. The
     # normalization should not increase TPU memory consumption because it does
     # not require gradient.
+    # assert False, "Just to hit debugger to observe shape of input"
     input_tensor = input_tensor / 127.5 - 1.0
     if training:
       result_dict = self._forward_step(input_tensor, training=training)

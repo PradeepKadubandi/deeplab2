@@ -368,7 +368,9 @@ def _build_waymo_image_panoptic_seg_dataset(**kwargs):
   return DatasetDescriptor(**default)
 
 
-WOD_PVPS_IMAGE_PANOPTIC_SEG_DATASET = _build_waymo_image_panoptic_seg_dataset()
+WOD_PVPS_IMAGE_PANOPTIC_SEG_DATASET = (
+    _build_waymo_image_panoptic_seg_dataset(
+        dataset_name=_WOD_PVPS_IMAGE_PANOPTIC_SEG))
 WOD_PVPS_DEPTH_VIDEO_PANOPTIC_SEG_DATASET = (
     _build_waymo_image_panoptic_seg_dataset(
         dataset_name=_WOD_PVPS_DEPTH_VIDEO_PANOPTIC_SEG,
