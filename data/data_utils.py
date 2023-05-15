@@ -417,3 +417,104 @@ class SegmentationDecoder(object):
       return_dict['depth'] = self._decode_label(
           parsed_tensors, common.KEY_ENCODED_DEPTH)
     return return_dict
+
+
+class VideoKMaxDecoder(object):
+  """Basic parser to decode serialized tf.Example."""
+
+  def __init__(self,
+               is_panoptic_dataset=True,
+               is_video_dataset=True,
+               decode_groundtruth_label=True):
+    self._is_panoptic_dataset = is_panoptic_dataset
+    self._is_video_dataset = is_video_dataset
+    self._decode_groundtruth_label = decode_groundtruth_label
+    string_feature = tf.io.FixedLenFeature((), tf.string)
+    int_feature = tf.io.FixedLenFeature((), tf.int64)
+    self._keys_to_features = {
+        common.KEY_ENCODED_IMAGE: string_feature,
+        common.KEY_IMAGE_FILENAME: string_feature,
+        common.KEY_IMAGE_FORMAT: string_feature,
+        common.KEY_IMAGE_HEIGHT: int_feature,
+        common.KEY_IMAGE_WIDTH: int_feature,
+        common.KEY_IMAGE_CHANNELS: int_feature,
+    }
+    if decode_groundtruth_label:
+      self._keys_to_features[common.KEY_ENCODED_LABEL] = string_feature
+      self._keys_to_features[common.KEY_LABEL_FORMAT] = string_feature
+    if self._is_video_dataset:
+      self._keys_to_features[common.KEY_SEQUENCE_ID] = string_feature
+      self._keys_to_features[common.KEY_FRAME_ID] = string_feature
+    # Next-frame specific processing.
+    self._keys_to_features[common.KEY_ENCODED_NEXT_IMAGE] = string_feature
+    if decode_groundtruth_label:
+      self._keys_to_features[common.KEY_ENCODED_NEXT_LABEL] = string_feature
+
+  def _decode_image(self, parsed_tensors, key):
+    """Decodes image under key from parsed tensors."""
+    image = tf.io.decode_image(
+        parsed_tensors[key],
+        channels=3,
+        dtype=tf.dtypes.uint8,
+        expand_animations=False)
+    image.set_shape([None, None, 3])
+    return image
+
+  def _decode_label(self, parsed_tensors, label_key, label_format = "raw"):
+    """Decodes segmentation label under label_key from parsed tensors."""
+    if self._is_panoptic_dataset:
+      if label_format == "raw":
+        flattened_label = tf.io.decode_raw(
+            parsed_tensors[label_key], out_type=tf.int32)
+      elif label_format == "png":
+        flattened_label = tf.io.decode_png(
+            parsed_tensors[label_key], channels=1, dtype=tf.uint32)
+        flattened_label = tf.cast(flattened_label, dtype=tf.int32)
+      elif label_format == "zlib":
+        flattened_label = tf.io.decode_compressed(parsed_tensors[label_key], compression_type="ZLIB")
+        flattened_label = tf.io.parse_tensor(flattened_label, out_type=tf.int32)
+      else:
+        raise ValueError("Unknown label format: {}".format(label_format))
+      label_shape = tf.stack([
+          parsed_tensors[common.KEY_IMAGE_HEIGHT],
+          parsed_tensors[common.KEY_IMAGE_WIDTH], 1
+      ])
+      label = tf.reshape(flattened_label, label_shape)
+      return label
+
+    label = tf.io.decode_image(parsed_tensors[label_key], channels=1)
+    label.set_shape([None, None, 1])
+    return label
+
+  def __call__(self, serialized_example):
+    parsed_tensors = tf.io.parse_single_example(
+        serialized_example, features=self._keys_to_features)
+    return_dict = {
+        'image':
+            self._decode_image(parsed_tensors, common.KEY_ENCODED_IMAGE),
+        'image_name':
+            parsed_tensors[common.KEY_IMAGE_FILENAME],
+        'height':
+            tf.cast(parsed_tensors[common.KEY_IMAGE_HEIGHT], dtype=tf.int32),
+        'width':
+            tf.cast(parsed_tensors[common.KEY_IMAGE_WIDTH], dtype=tf.int32),
+    }
+    return_dict['label'] = None
+    if self._decode_groundtruth_label:
+      # label_format = parsed_tensors[common.KEY_LABEL_FORMAT].eval().decode()
+      # assert label_format in ["raw", "png", "zlib"], f"Unknown label format: {label_format}"
+      # TODO: fix this, I couldn't get the above 2 lines to work, so for now hardcoding for my scenario.
+      label_format = "zlib"
+      return_dict['label'] = self._decode_label(parsed_tensors,
+                                                common.KEY_ENCODED_LABEL, label_format)
+    if self._is_video_dataset:
+      return_dict['sequence'] = parsed_tensors[common.KEY_SEQUENCE_ID]
+
+    next_image = self._decode_image(parsed_tensors, common.KEY_ENCODED_NEXT_IMAGE)
+    return_dict['image'] = tf.concat([return_dict['image'], next_image], axis=0)
+
+    if self._decode_groundtruth_label:
+      next_label = self._decode_label(parsed_tensors, common.KEY_ENCODED_NEXT_LABEL, label_format="zlib")
+      return_dict['label'] = tf.concat([return_dict['label'], next_label], axis=0)
+
+    return return_dict
