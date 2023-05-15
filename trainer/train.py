@@ -75,7 +75,8 @@ def main(_):
     logging.info('Starting the experiment.')
     combined_model_dir = os.path.join(FLAGS.model_dir, config.experiment_name)
     os.makedirs(combined_model_dir, exist_ok=True)
-    if not os.path.exists(os.path.join(combined_model_dir, FLAGS.config_file)):
+    config_file_name = os.path.basename(FLAGS.config_file)
+    if not os.path.exists(os.path.join(combined_model_dir, config_file_name)):
         shutil.copy(FLAGS.config_file, combined_model_dir)
     train_lib.run_experiment(FLAGS.mode, config, combined_model_dir, FLAGS.master,
                             FLAGS.num_gpus)
