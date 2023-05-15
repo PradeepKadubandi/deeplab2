@@ -31,11 +31,12 @@
 #   for Bottom-Up Panoptic Segmentation." In CVPR, 2020.
 
 # Use a unique experiment_name for each experiment.
-experiment_name: "pk-trial-train-1"
+# experiment_name: "pk-expt-4-panoptic-deeplab-resnet50-with-32-quarter-crop-skip-resize-use-scaling-30k-steps-LABEL_DIVISOR_FIX"
+experiment_name: "pk-trial-1-panoptic-deeplab"
 model_options {
   # Update the path to the initial checkpoint (e.g., ImageNet
   # pretrained checkpoint).
-  # initial_checkpoint: "/home/pkadubandi/GH/PradeepKadubandi/waymo-challenge/pretrained_checkpoints/resnet50_imagenet1k_strong_training_strategy/ckpt-350.index"
+  initial_checkpoint: "/home/pkadubandi/GH/PradeepKadubandi/waymo-challenge/pretrained_checkpoints/resnet50_imagenet1k_strong_training_strategy/ckpt-350.index"
   backbone {
     name: "resnet50"
     output_stride: 32
@@ -83,13 +84,13 @@ model_options {
       }
     }
     semantic_head {
-      output_channels: 28
+      output_channels: 29
       head_channels: 256
     }
   }
 }
 trainer_options {
-  save_checkpoints_steps: 1000
+  save_checkpoints_steps: 6000
   save_summaries_steps: 100
   steps_per_loop: 100
   loss_options {
@@ -109,16 +110,48 @@ trainer_options {
   }
   solver_options {
     base_learning_rate: 0.00025
-    training_number_of_steps: 10
+    training_number_of_steps: 30000
   }
 }
 train_dataset_options {
   dataset: "wod_pvps_image_panoptic_seg"
-  # file_pattern: "gs://waymo_open_dataset_v_1_4_2/individual_files/training/segment-10017090168044687777_6380_000_6400_000_with_camera_labels.tfrecord" # TODO: Need to set this right.
-  file_pattern: "/home/pkadubandi/data/waymo-open-dataset/training/v_2_0_0/image_with_seg_tfrecords/*.tfrecord" # TODO: Need to set this right.
-  # file_pattern: "gs://waymo_open_dataset_v_1_4_0/individual_files/training/segment-10017090168044687777_6380_000_6400_000_with_camera_labels.tfrecord"
-  crop_size: 640 # On my machine with 2 GPUS of 16 GB memory, at full resolution (1280 x 1920), I get OOM error for batch_size = 4 when using resnet50 backbone.
-  crop_size: 960,
-  batch_size: 8,
+  file_pattern: "/home/pkadubandi/data/waymo-open-dataset/v_2_0_0/training/vip_deeplab_format_compressed2/*.tfrecord"
+  crop_size: 320 # On my machine with 2 GPUS of 16 GB memory, at full resolution (1280 x 1920), I get OOM error for batch_size = 4 when using resnet50 backbone.
+  crop_size: 480,
+  batch_size: 16,
+  augmentations {
+    min_scale_factor: 0.5
+    max_scale_factor: 2.0
+    scale_factor_step_size: 0.1
+  }
+  min_resize_value: 0
+  max_resize_value: 0
 }
-# TODO: Eval and continous eval are not supported yet.
+eval_dataset_options {
+  dataset: "wod_pvps_image_panoptic_seg"
+  # Update the path to validation set.
+  file_pattern: "/home/pkadubandi/data/waymo-open-dataset/v_2_0_0/validation/vip_deeplab_format_compressed2/*.tfrecord"
+  batch_size: 1
+  crop_size: 320
+  crop_size: 480
+  max_resize_value: 0
+  max_resize_value: 0
+  # TODO: Add options to make the evaluation loss comparable to the training loss.
+  # increase_small_instance_weights: true
+  # small_instance_weight: 3.0
+}
+evaluator_options {
+  continuous_eval_timeout: -1
+  eval_interval: 10000
+  eval_steps: 1000
+  stuff_area_limit: 4096
+  center_score_threshold: 0.1
+  nms_kernel: 41
+  save_predictions: false
+  save_raw_predictions: false
+  # Use pure tf functions (i.e., no CUDA kernel) to merge semantic and
+  # instance maps. For faster speed, compile TensorFlow with provided kernel
+  # implementation under the folder `tensorflow_ops`, and set
+  # merge_semantic_and_instance_with_tf_op to true.
+  merge_semantic_and_instance_with_tf_op: false
+}
