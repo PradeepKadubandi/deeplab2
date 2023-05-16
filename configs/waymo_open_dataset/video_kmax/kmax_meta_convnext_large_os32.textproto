@@ -21,7 +21,7 @@
 
 # Use a unique experiment_name for each experiment.
 # experiment_name: "pk-video-kmax-expt-1-convnextL"
-experiment_name: "pk-video-kmax-trial-3-convnextL"
+experiment_name: "pk-video-kmax-expt-1-convnextL"
 model_options {
   restore_semantic_last_layer_from_initial_checkpoint: false
   backbone {
@@ -117,6 +117,7 @@ train_dataset_options {
   small_instance_weight: 1.0
   thing_id_mask_annotations: true
   max_thing_id: 256
+  use_height_concat: true
 }
 eval_dataset_options {
   dataset: "wod_pvps_image_panoptic_seg"
@@ -132,6 +133,7 @@ eval_dataset_options {
   small_instance_weight: 1.0
   thing_id_mask_annotations: true
   max_thing_id: 256
+  use_height_concat: true
 }
 evaluator_options {
   continuous_eval_timeout: -1
