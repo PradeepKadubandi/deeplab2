@@ -69,7 +69,6 @@ from absl import flags
 from absl import logging
 import numpy as np
 from tqdm import tqdm
-from dask.distributed import Client as DDClient, LocalCluster
 
 from PIL import Image
 
@@ -196,10 +195,21 @@ def process_context_name(root_dir, output_filename, context_name, is_for_trainin
     print (f"context_name: {context_name}:: # of records in context_data: {len(context_data)}")
     tf_records = list()
     
-    groups = context_data.groupby(["[CameraSegmentationLabelComponent].sequence_id"])
-    for sequence_id, group_by_sequence in groups:
-        print (f"context_name: {context_name}:: start processing sequence: {sequence_id}, # of records in sequence: {len(group_by_sequence)}")
-        timestamps = pd.unique(group_by_sequence["key.frame_timestamp_micros"].sort_values())
+    if not is_for_testing:
+      group_keys = pd.unique(context_data["[CameraSegmentationLabelComponent].sequence_id"])
+    else:
+      group_keys = pd.unique(context_data["key.segment_context_name"])
+
+    for group_key in group_keys:
+        if not is_for_testing:
+          grouped_data = context_data[context_data["[CameraSegmentationLabelComponent].sequence_id"] == group_key]
+          sequence_id = group_key
+        else:
+          grouped_data = context_data[context_data["key.segment_context_name"] == group_key]
+          sequence_id = "None"
+
+        print (f"context_name: {context_name}:: start processing sequence (None indicates no labels): {sequence_id}, # of records in group: {len(grouped_data)}")
+        timestamps = pd.unique(grouped_data["key.frame_timestamp_micros"].sort_values())
         next_timestamp_map = dict(zip(timestamps[:-1], timestamps[1:]))
         next_timestamp_map[timestamps[-1]] = timestamps[-1] # set the last timestamp as next to itself - to duplicate the last row as next frame
         
@@ -207,7 +217,7 @@ def process_context_name(root_dir, output_filename, context_name, is_for_trainin
         label_protos = OrderedDict()
         label_values = OrderedDict()
         
-        for (_, row) in group_by_sequence.iterrows():
+        for (_, row) in grouped_data.iterrows():
             cam_image = v2.CameraImageComponent.from_dict(row)
             row_key = (cam_image.key.camera_name, cam_image.key.frame_timestamp_micros)
             image_protos[row_key] = cam_image
