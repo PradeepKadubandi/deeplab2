@@ -65,7 +65,7 @@ def get_model(model_name, input_shape, drop_path_keep_prob=1.0, **kwargs):
   model_name = model_name.lower()
   if model_name == "resnet50":
     model = resnet50(
-        name="resnet", block_group_config=block_group_config, **kwargs)
+        name=model_name, block_group_config=block_group_config, **kwargs)
   elif model_name == "axial_resnet50":
     model = axial_resnet50(
         name=model_name, block_group_config=block_group_config, **kwargs)
