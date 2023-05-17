@@ -122,4 +122,8 @@ message DatasetOptions {
   //  - 'side_right'
   //  - 'panorama'
   repeated string cameras_to_use = 18;
+
+  // For clip kmax setting, concat the next frame with the current frame along
+  // the height dimension.
+  optional bool use_height_concat = 19 [default = false];
 }
