@@ -495,7 +495,7 @@ class VideoKMaxDecoder(object):
         'image_name':
             parsed_tensors[common.KEY_IMAGE_FILENAME],
         'height':
-            tf.cast(parsed_tensors[common.KEY_IMAGE_HEIGHT], dtype=tf.int32),
+            tf.cast(2 * parsed_tensors[common.KEY_IMAGE_HEIGHT], dtype=tf.int32), # We are concatenating 2 frames along height axis below, so double the height
         'width':
             tf.cast(parsed_tensors[common.KEY_IMAGE_WIDTH], dtype=tf.int32),
     }
