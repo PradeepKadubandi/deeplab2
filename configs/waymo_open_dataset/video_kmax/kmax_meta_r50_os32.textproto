@@ -21,7 +21,7 @@
 # - Qihang Yu, et al. "k-means Mask Transformer." In ECCV, 2022.
 
 # Use a unique experiment_name for each experiment.
-experiment_name: "pk-video-kmax-debug-1-r50"
+experiment_name: "pk-video-kmax-trial-eval-1-r50"
 model_options {
   initial_checkpoint: "/home/pkadubandi/GH/PradeepKadubandi/waymo-challenge/pretrained_checkpoints/resnet50_imagenet1k_strong_training_strategy/ckpt-350.index"
   # restore_semantic_last_layer_from_initial_checkpoint: true
@@ -96,9 +96,11 @@ train_dataset_options {
   # Also see Q1 in g3doc/faq.md.
   batch_size: 4
   crop_size: 641
-  crop_size: 641
+  crop_size: 481
   min_resize_value: 641
+  min_resize_value: 481
   max_resize_value: 641
+  max_resize_value: 481
   augmentations {
     min_scale_factor: 0.5
     max_scale_factor: 2.0
@@ -123,9 +125,11 @@ eval_dataset_options {
   file_pattern: "/home/pkadubandi/data/waymo-open-dataset/v_2_0_0/validation/vip_deeplab_format/*.tfrecord"
   batch_size: 1
   crop_size: 641
-  crop_size: 641
+  crop_size: 481
   min_resize_value: 641
+  min_resize_value: 481
   max_resize_value: 641
+  max_resize_value: 481
   # Add options to make the evaluation loss comparable to the training loss.
   increase_small_instance_weights: false
   small_instance_weight: 1.0
@@ -147,6 +151,7 @@ evaluator_options {
     reorder_mask_weight: 1.0
   }
   save_predictions: true
-  save_raw_predictions: false
-  eval_steps: 1000
+  save_raw_predictions: true
+  eval_steps: 100
+  convert_raw_to_eval_ids: false
 }

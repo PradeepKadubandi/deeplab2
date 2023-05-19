@@ -32,7 +32,7 @@
 
 # Use a unique experiment_name for each experiment.
 # experiment_name: "pk-expt-4-panoptic-deeplab-resnet50-with-32-quarter-crop-skip-resize-use-scaling-30k-steps-LABEL_DIVISOR_FIX"
-experiment_name: "pk-trial-1-panoptic-deeplab"
+experiment_name: "pk-debug-1-panoptic-deeplab"
 model_options {
   # Update the path to the initial checkpoint (e.g., ImageNet
   # pretrained checkpoint).
@@ -115,7 +115,7 @@ trainer_options {
 }
 train_dataset_options {
   dataset: "wod_pvps_image_panoptic_seg"
-  file_pattern: "/home/pkadubandi/data/waymo-open-dataset/v_2_0_0/training/vip_deeplab_format_compressed2/*.tfrecord"
+  file_pattern: "/home/pkadubandi/data/waymo-open-dataset/v_2_0_0/training/vip_deeplab_format/*.tfrecord"
   crop_size: 320 # On my machine with 2 GPUS of 16 GB memory, at full resolution (1280 x 1920), I get OOM error for batch_size = 4 when using resnet50 backbone.
   crop_size: 480,
   batch_size: 16,
@@ -130,7 +130,7 @@ train_dataset_options {
 eval_dataset_options {
   dataset: "wod_pvps_image_panoptic_seg"
   # Update the path to validation set.
-  file_pattern: "/home/pkadubandi/data/waymo-open-dataset/v_2_0_0/validation/vip_deeplab_format_compressed2/*.tfrecord"
+  file_pattern: "/home/pkadubandi/data/waymo-open-dataset/v_2_0_0/validation/vip_deeplab_format/*.tfrecord"
   batch_size: 1
   crop_size: 320
   crop_size: 480

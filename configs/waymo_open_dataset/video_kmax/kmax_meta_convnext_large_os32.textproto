@@ -21,7 +21,7 @@
 
 # Use a unique experiment_name for each experiment.
 # experiment_name: "pk-video-kmax-expt-1-convnextL"
-experiment_name: "pk-video-kmax-expt-1-convnextL"
+experiment_name: "pk-video-kmax-debug-1-convnextL"
 model_options {
   restore_semantic_last_layer_from_initial_checkpoint: false
   backbone {
@@ -30,7 +30,7 @@ model_options {
     drop_path_keep_prob: 0.3
     # We use pretrained_weights instead of initial_checkpoint for loading
     # specifical weights for backbone (e.g., converted pytorch weights).
-    # pretrained_weights: "/home/pkadubandi/GH/PradeepKadubandi/waymo-challenge/pretrained_checkpoints/kmax_convnext_large_res641_ade20k_train/ckpt-100000.index"
+    pretrained_weights: "/home/pkadubandi/GH/PradeepKadubandi/waymo-challenge/pretrained_checkpoints/convnext_large_imagenet_22k_1k_384/convnext_large_21k_1k_384.index"
   }
   decoder {
     feature_key: "feature_semantic"
@@ -98,9 +98,11 @@ train_dataset_options {
   # Also see Q1 in g3doc/faq.md.
   batch_size: 2
   crop_size: 641
-  crop_size: 641
+  crop_size: 481
   min_resize_value: 641
+  min_resize_value: 481
   max_resize_value: 641
+  max_resize_value: 481
   augmentations {
     min_scale_factor: 0.5
     max_scale_factor: 2.0
@@ -125,9 +127,11 @@ eval_dataset_options {
   file_pattern: "/home/pkadubandi/data/waymo-open-dataset/v_2_0_0/validation/vip_deeplab_format/*.tfrecord"
   batch_size: 1
   crop_size: 641
-  crop_size: 641
+  crop_size: 481
   min_resize_value: 641
+  min_resize_value: 481
   max_resize_value: 641
+  max_resize_value: 481
   # Add options to make the evaluation loss comparable to the training loss.
   increase_small_instance_weights: false
   small_instance_weight: 1.0
@@ -149,6 +153,7 @@ evaluator_options {
     reorder_mask_weight: 1.0
   }
   save_predictions: true
-  save_raw_predictions: false
-  eval_steps: 1000
+  save_raw_predictions: true
+  eval_steps: 100
+  convert_raw_to_eval_ids: false
 }

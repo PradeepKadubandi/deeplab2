@@ -31,7 +31,7 @@
 #   for Bottom-Up Panoptic Segmentation." In CVPR, 2020.
 
 # Use a unique experiment_name for each experiment.
-experiment_name: "pk-vip-deeplab-expt-1"
+experiment_name: "pk-vip-deeplab-expt-2"
 model_options {
   # Update the path to the initial checkpoint (e.g., ImageNet
   # pretrained checkpoint).
@@ -158,10 +158,11 @@ evaluator_options {
   center_score_threshold: 0.1
   nms_kernel: 13
   save_predictions: true
-  save_raw_predictions: false
+  save_raw_predictions: true
   # Use pure tf functions (i.e., no CUDA kernel) to merge semantic and
   # instance maps. For faster speed, compile TensorFlow with provided kernel
   # implementation under the folder `tensorflow_ops`, and set
   # merge_semantic_and_instance_with_tf_op to true.
   merge_semantic_and_instance_with_tf_op: false
+  convert_raw_to_eval_ids: false
 }
