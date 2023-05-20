@@ -202,11 +202,12 @@ def process_context_name(root_dir, output_filename, context_name, is_for_trainin
 
     for group_key in group_keys:
         if not is_for_testing:
-          grouped_data = context_data[context_data["[CameraSegmentationLabelComponent].sequence_id"] == group_key]
+          grouped_data = context_data[context_data["[CameraSegmentationLabelComponent].sequence_id"] == group_key].sort_values(by=["key.camera_name", "key.frame_timestamp_micros"])
           sequence_id = group_key
         else:
-          grouped_data = context_data[context_data["key.segment_context_name"] == group_key]
-          sequence_id = "None"
+          # The filtering is really not needed here as we are processing a single context_name anyway. But just in case...
+          grouped_data = context_data[context_data["key.segment_context_name"] == group_key].sort_values(by=["key.camera_name", "key.frame_timestamp_micros"])
+          sequence_id = group_key
 
         print (f"context_name: {context_name}:: start processing sequence (None indicates no labels): {sequence_id}, # of records in group: {len(grouped_data)}")
         timestamps = pd.unique(grouped_data["key.frame_timestamp_micros"].sort_values())
