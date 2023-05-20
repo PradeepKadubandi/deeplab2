@@ -154,5 +154,5 @@ evaluator_options {
   save_raw_predictions: true
   eval_steps: 100
   convert_raw_to_eval_ids: false
-  raw_panoptic_format: "two_channel_numpy_array"
+  raw_panoptic_format: "three_channel_png"
 }

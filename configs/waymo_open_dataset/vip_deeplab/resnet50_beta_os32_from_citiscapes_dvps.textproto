@@ -165,5 +165,5 @@ evaluator_options {
   # merge_semantic_and_instance_with_tf_op to true.
   merge_semantic_and_instance_with_tf_op: false
   convert_raw_to_eval_ids: false
-  raw_panoptic_format: "two_channel_numpy_array"
+  raw_panoptic_format: "three_channel_png"
 }
