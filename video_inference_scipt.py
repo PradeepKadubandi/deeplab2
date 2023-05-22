@@ -118,6 +118,19 @@ def panoptic_to_three_channel(panoptic, label_divisor):
 def get_file_name(context_name, sequence_id, camera_name, timestamp):
     return f'context:{context_name}::sequence:{sequence_id}::camera_name:{camera_name}::timestamp:{timestamp}'
 
+def get_current_and_next_panoptic(context_predictions, file_name):
+    label_divisor = waymo_constants.PANOPTIC_LABEL_DIVISOR
+    file_path = os.path.join(context_predictions, file_name + '.png')
+    current_panoptic = panoptic_from_three_channel(tf.io.decode_png(tf.io.read_file(file_path)), label_divisor)
+    next_file_path = os.path.join(context_predictions, file_name + '_next.png')
+    if os.path.exists(next_file_path):
+        ''' This is the format of vip deeplab eval output'''
+        next_panoptic = panoptic_from_three_channel(tf.io.decode_png(tf.io.read_file(next_file_path)), label_divisor)
+    else:
+        ''' This is the format of video kmax eval output'''
+        current_panoptic, next_panoptic = tf.split(current_panoptic, 2, axis=0)
+    return current_panoptic.numpy(), next_panoptic.numpy()
+
 def process_single_context(context_predictions, output_dir):
     label_divisor = waymo_constants.PANOPTIC_LABEL_DIVISOR
     file_paths = tf.io.gfile.listdir(context_predictions)
@@ -132,11 +145,8 @@ def process_single_context(context_predictions, output_dir):
             if i == len(camera_data_frame) - 1:
                 break
             file_name = get_file_name(row['context_name'], row['sequence_id'], row['camera_name'], row['timestamp'])
-            file_path = os.path.join(context_predictions, file_name + '.png')
-            next_file_path = os.path.join(context_predictions, file_name + '_next.png')
-            input_array = panoptic_from_three_channel(tf.io.decode_png(tf.io.read_file(file_path)), label_divisor)
-            next_input_array = panoptic_from_three_channel(tf.io.decode_png(tf.io.read_file(next_file_path)), label_divisor)
-            model.infer(input_array.numpy(), next_input_array.numpy())
+            input_array, next_input_array = get_current_and_next_panoptic(context_predictions, file_name)
+            model.infer(input_array, next_input_array)
 
         stitched_panoptic = model.results()
         for (_, row), panoptic in zip(camera_data_frame.iterrows(), stitched_panoptic):
