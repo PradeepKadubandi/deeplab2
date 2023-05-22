@@ -105,7 +105,9 @@ def process_single_context(context_predictions, output_dir):
             tf.io.write_file(new_file_path, tf.io.encode_png(three_channel_png))
 
 def main(saved_predictions_root, output_dir_root):
-    context_names = tf.io.gfile.listdir(saved_predictions_root)
+    context_names = set(tf.io.gfile.listdir(saved_predictions_root))
+    processed_context_names = set(tf.io.gfile.listdir(output_dir_root)) # to resume run that was killed for some reason.
+    context_names = context_names.difference(processed_context_names)
     # context_names = context_names[:1] # for debugging
     for context_name in tqdm(context_names):
         print (f"{datetime.now()}: Processing {context_name}")
