@@ -34,7 +34,7 @@ camera_left_to_right_order = [open_dataset.CameraName.SIDE_LEFT,
                               open_dataset.CameraName.FRONT_RIGHT,
                               open_dataset.CameraName.SIDE_RIGHT]
 wod_source_folder = "/home/pkadubandi/GH/waymo-research/waymo-open-dataset"
-predictions_root = "/home/pkadubandi/GH/PradeepKadubandi/waymo-challenge/saved_experiments/lamda-vm-1/pk-lambda-vip-deeplab-expt-5-half-crop-batch-8-tf12/submission_predictions/video_stiched_panoptic"
+predictions_root = "/home/pkadubandi/GH/PradeepKadubandi/waymo-challenge/saved_experiments/lamda-vm-1/pk-lambda-vip-deeplab-expt-5-half-crop-batch-8-tf12/submission_predictions/camera_stitched_panoptic"
 
 submission_type = 'testing'
 TEST_SET_SOURCE = os.path.join(wod_source_folder, 'tutorial/2d_pvps_test_frames.txt') #@param {type: "string"} 
@@ -42,8 +42,8 @@ TEST_SET_SOURCE = os.path.join(wod_source_folder, 'tutorial/2d_pvps_test_frames.
 SAVE_FOLDER = os.path.join(wod_source_folder, 'submissions', submission_type) #@param {type: "string"}
 
 submission_account_name = 'pkadubandi@gmail.com'
-submission_method_name = 'ViP DeepLab with video and camera stitching'
-submission_description = 'Train ViP Deeplab method at batch size 8 (due to limited training compute) and do video and camera stitching'
+submission_method_name = 'ViP DeepLab with video and panoramic stitching'
+submission_description = 'Train ViP Deeplab method at batch size 8 (due to limited training compute) and do video and panoramic stitching'
 # end of global variables
 
 def _make_submission_proto() -> submission_pb2.CameraSegmentationSubmission:
@@ -116,6 +116,9 @@ def _save_submission_to_file(
   f.close()
 
 def main():
+    if tf.io.gfile.exists(SAVE_FOLDER):
+        raise ValueError('Save folder already exists. Please delete it first.')
+    
     context_name_timestamp_tuples = [x.rstrip().split(',') for x in (
         tf.io.gfile.GFile(TEST_SET_SOURCE, 'r').readlines())]
 
