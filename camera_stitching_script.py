@@ -39,9 +39,9 @@ def panoptic_from_three_channel(three_channel_array, label_divisor):
     panoptic = three_channel_array[:, :, 0] * label_divisor + instance
     return panoptic
 
-def panoptic_to_three_channel(panoptic, label_divisor):
-    predicted_instance_labels = panoptic % label_divisor
-    predicted_semantic_labels = panoptic // label_divisor
+def get_three_channel_from_sem_inst(predicted_semantic_labels, predicted_instance_labels):
+    predicted_semantic_labels = np.squeeze(predicted_semantic_labels, axis=-1)
+    predicted_instance_labels = np.squeeze(predicted_instance_labels, axis=-1)
     if np.max(predicted_semantic_labels) > 255:
         raise ValueError('Overflow: Semantic IDs greater 255 are not supported '
                         'for images of 8-bit. Please save output as numpy '
@@ -50,7 +50,7 @@ def panoptic_to_three_channel(panoptic, label_divisor):
         raise ValueError(
                         'Overflow: Instance IDs greater 65535 could not be encoded by '
                         'G and B channels. Please save output as numpy arrays instead.')
-    three_channel_array = np.zeros((panoptic.shape[0], panoptic.shape[1], 3), dtype=np.uint8)
+    three_channel_array = np.zeros((predicted_semantic_labels.shape[0], predicted_semantic_labels.shape[1], 3), dtype=np.uint8)
     three_channel_array[:, :, 0] = predicted_semantic_labels
     three_channel_array[:, :, 1] = predicted_instance_labels // 255
     three_channel_array[:, :, 2] = predicted_instance_labels % 255
@@ -71,6 +71,12 @@ def read_parquet_df(tag: str, context_name) -> pd.DataFrame:
   return pd.read_parquet(paths)
 
 def calculate_camera_mappings(context_name):
+    disk_cache = os.path.join('/home/pkadubandi/data/waymo-open-dataset/v_2_0_0/testing_location/camera_mappings_saved', context_name)
+    if os.path.exists(disk_cache):
+        cam_dim_ordered = np.load(os.path.join(disk_cache, 'cam_dim_ordered.npy'))
+        map_cam_to_vir_ordered = np.load(os.path.join(disk_cache, 'map_cam_to_vir_ordered.npy'))
+        return cam_dim_ordered, map_cam_to_vir_ordered
+    
     cam_cal_df = read_parquet_df("camera_calibration", context_name)
     # Read & shape camera extrinsics
     cam_ext = np.zeros((5,4,4))
@@ -156,6 +162,9 @@ def calculate_camera_mappings(context_name):
     print(cam_dim)
     print(cam_dim_ordered)
 
+    os.makedirs(disk_cache, exist_ok=True)
+    np.save(os.path.join(disk_cache, 'cam_dim_ordered.npy'), cam_dim_ordered)
+    np.save(os.path.join(disk_cache, 'map_cam_to_vir_ordered.npy'), map_cam_to_vir_ordered)
     return cam_dim_ordered, map_cam_to_vir_ordered
 
 def get_pano_linear_index_for_instance_label(cam, frm, inst_lbl, 
@@ -198,6 +207,7 @@ def get_instance_pair_ious_for_2_cams(frm, cam1, cam2, thing_sem_lbls,
                 rcidx1.append((inst_lbl, rc))
     
         inst_lbls2 = np.unique(instance_labels_multiframe[frm][cam2][semantic_labels_multiframe[frm][cam2]==sem_lbl])
+            
         rcidx2 = []
         for inst_lbl in inst_lbls2:
             #print("cam2 sem_lbl, inst_lbl", sem_lbl, inst_lbl)
@@ -241,9 +251,37 @@ def find_instance_matches_from_pair_ious(pair_ious):
             matches.append(match)
     return matches
 
-def propagate_instance_labels_for_cam(cam, start_frm, end_frm, orig_inst_lbls, new_inst_lbls, instance_labels_multiframe):
-    for frm in range(start_frm, end_frm+1):
-        for orig, new in zip(orig_inst_lbls, new_inst_lbls):
+def get_history_len_for_label(match_frm, cam, lbl, instance_labels_multiframe):
+    num_frames = len(instance_labels_multiframe)
+    max_history_len = 10
+    history_len = 0
+    for frm in range(match_frm-1, match_frm-max_history_len, -1):
+        if frm < 0:
+            break
+        if np.any(instance_labels_multiframe[frm][cam]==lbl):
+            history_len += 1
+    return history_len
+
+def get_replacements_from_matches_for_camera_pair(matches, match_frm, cam1, cam2, instance_labels_multiframe):
+    # matches are [sem_label inst_label_cam1 inst_label_cam2]
+    cam1_replacement = []
+    cam2_replacement = []
+    for match in matches:
+        lbl_cam1 = match[1]
+        lbl_cam2 = match[2]
+        # check which one of them has a longer history
+        hist_len1 = get_history_len_for_label(match_frm, cam1, lbl_cam1, instance_labels_multiframe)
+        hist_len2 = get_history_len_for_label(match_frm, cam2, lbl_cam2, instance_labels_multiframe)
+        if (hist_len1 >= hist_len2):
+            cam2_replacement.append([lbl_cam2, lbl_cam1])
+        else:
+            cam1_replacement.append([lbl_cam1, lbl_cam2])
+    
+    return cam1_replacement, cam2_replacement
+
+def propagate_instance_labels_for_cam(cam, start_frm, end_frm, inst_lbls_replacement, instance_labels_multiframe):
+    for frm in range(start_frm, end_frm):
+        for orig, new in inst_lbls_replacement:
             instance_labels_multiframe[frm][cam][instance_labels_multiframe[frm][cam]==orig] = new
     
     return instance_labels_multiframe
@@ -266,27 +304,52 @@ def process_single_context(context_name, context_predictions, output_dir):
             row = multi_cam_frames[multi_cam_frames['camera_name'] == str(camera_name)].iloc[0]
             file_name = get_file_name(row['context_name'], row['sequence_id'], row['camera_name'], row['timestamp'])
             three_channel_panoptic = get_current_panoptic_three_channel(context_predictions, file_name)
-            semantic_labels.append(three_channel_panoptic[:, :, 0])
-            instance_labels.append(three_channel_panoptic[:, :, 1] * 255 + three_channel_panoptic[:, :, 2])
+            semantic_labels.append(np.expand_dims(three_channel_panoptic[:, :, 0], axis=-1))
+            instance_labels.append(np.expand_dims(three_channel_panoptic[:, :, 1] * 255 + three_channel_panoptic[:, :, 2], axis=-1))
         semantic_labels_multiframe.append(semantic_labels)
         instance_labels_multiframe.append(instance_labels)
 
-    for frame_idx in range(len(semantic_labels_multiframe)):
+    n_frames = len(semantic_labels_multiframe)
+    for frame_idx in range(n_frames):
         for (cam1, cam2) in zip(camera_left_to_right_order[:-1], camera_left_to_right_order[1:]):
+            cam1 -= 1
+            cam2 -= 1
             p_iou = get_instance_pair_ious_for_2_cams(frame_idx, cam1, cam2, thing_list,
                             instance_labels_multiframe, semantic_labels_multiframe,
                             map_cam_to_vir_ordered)
+            if len(p_iou) == 0:
+                # print ("No matches found for frame %d, cam1 %s, cam2 %s" % (frame_idx, cam1, cam2))
+                continue
             matches = find_instance_matches_from_pair_ious(p_iou)
-
+            r1, r2 = get_replacements_from_matches_for_camera_pair(matches, frame_idx, cam1, cam2, instance_labels_multiframe)
+            instance_labels_multiframe = propagate_instance_labels_for_cam(cam1, frame_idx, n_frames, r1, instance_labels_multiframe)
+            instance_labels_multiframe = propagate_instance_labels_for_cam(cam2, frame_idx, n_frames, r2, instance_labels_multiframe)
+    
+    for frame_idx in range(n_frames):
+        timestamp = all_timestamps[frame_idx]
+        for camera_idx, camera_name in enumerate(camera_left_to_right_order):
+            file_name = get_file_name(context_name, context_name, camera_name, timestamp)
+            semantic_labels = semantic_labels_multiframe[frame_idx][camera_idx]
+            instance_labels = instance_labels_multiframe[frame_idx][camera_idx]
+            three_channel_png = get_three_channel_from_sem_inst(semantic_labels, instance_labels)
+            new_file_path = os.path.join(output_dir, file_name + '.png')
+            tf.io.write_file(new_file_path, tf.io.encode_png(three_channel_png))
+            
 
 def main(saved_predictions_root, output_dir_root):
-    context_names = tf.io.gfile.listdir(saved_predictions_root)
-    context_names = context_names[:1]
+    context_names = set(tf.io.gfile.listdir(saved_predictions_root))
+    processed_context_names = set(tf.io.gfile.listdir(output_dir_root)) # to resume run that was killed for some reason.
+    context_names = context_names.difference(processed_context_names)
+    # context_names = context_names[:1]
+    # context_names = ["13787943721654585343_1220_000_1240_000"]
     for context_name in tqdm(context_names):
         print (f"{datetime.now()}: Processing {context_name}")
         context_predictions = os.path.join(saved_predictions_root, context_name)
         output_dir = os.path.join(output_dir_root, context_name)
-        process_single_context(context_name, context_predictions, output_dir)
+        try:
+            process_single_context(context_name, context_predictions, output_dir)
+        except Exception as e:
+            print (f"Error processing {context_name}: {e}, continuing to next context.")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
