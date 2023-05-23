@@ -11,7 +11,7 @@ from waymo_open_dataset.protos import camera_segmentation_submission_pb2 as subm
 from waymo_open_dataset.utils import camera_segmentation_utils
 
 '''
-Replace all the paths in the global variables as appropriate.
+Replace all the global variables as appropriate.
 And run:
     python -m deeplab2.submission_script
 
@@ -20,7 +20,11 @@ Assumes that the predictions are stored as 'three_channel_png' files in the foll
     where file_name is of the format:
         context:{context_name}::sequence:{sequence_id}::camera_name:{camera_name}::timestamp:{timestamp}
 
-This will write the protos. Needs to run thet tar command at the end of tutorial notebook to generate a file that can be submitted.
+This will write the submission protos. Needs to run thet tar command at the end of tutorial notebook to generate a file that can be submitted.
+    tar czvf /tmp/camera_segmentation_challenge/submit_testing.tar.gz -C $SAVE_FOLDER .
+
+Finally upload the .tar.gz file to the submission website!!
+
 '''
 # Global variables.
 panoptic_label_divisor = waymo_constants.PANOPTIC_LABEL_DIVISOR
@@ -37,14 +41,19 @@ TEST_SET_SOURCE = os.path.join(wod_source_folder, 'tutorial/2d_pvps_test_frames.
 
 SAVE_FOLDER = os.path.join(wod_source_folder, 'submissions', submission_type) #@param {type: "string"}
 
+submission_account_name = 'pkadubandi@gmail.com'
+submission_method_name = 'ViP DeepLab with video and camera stitching'
+submission_description = 'Train ViP Deeplab method at batch size 8 (due to limited training compute) and do video and camera stitching'
+# end of global variables
+
 def _make_submission_proto() -> submission_pb2.CameraSegmentationSubmission:
     """Makes a submission proto to store predictions for one shard."""
     submission = submission_pb2.CameraSegmentationSubmission()
-    submission.account_name = 'pkadubandi@gmail.com'
-    submission.unique_method_name = 'My method'
+    submission.account_name = submission_account_name
+    submission.unique_method_name = submission_method_name
     submission.authors.extend(['Aniket Murarka', 'Pradeep Kadubandi'])
     submission.affiliation = 'TeamAniketPradeep'
-    submission.description = 'Description of my method'
+    submission.description = submission_description
     submission.method_link = 'http://example.com/'
     submission.frame_dt = 1
     submission.runtime_ms = 1000
