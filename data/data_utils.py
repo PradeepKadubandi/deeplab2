@@ -305,13 +305,15 @@ class SegmentationDecoder(object):
                is_depth_dataset=False,
                use_two_frames=False,
                use_next_frame=False,
-               decode_groundtruth_label=True):
+               decode_groundtruth_label=True,
+               label_format='zlib'):
     self._is_panoptic_dataset = is_panoptic_dataset
     self._is_video_dataset = is_video_dataset
     self._is_depth_dataset = is_depth_dataset
     self._use_two_frames = use_two_frames
     self._use_next_frame = use_next_frame
     self._decode_groundtruth_label = decode_groundtruth_label
+    self.label_format = label_format
     string_feature = tf.io.FixedLenFeature((), tf.string)
     int_feature = tf.io.FixedLenFeature((), tf.int64)
     self._keys_to_features = {
@@ -396,9 +398,8 @@ class SegmentationDecoder(object):
       # label_format = parsed_tensors[common.KEY_LABEL_FORMAT].eval().decode()
       # assert label_format in ["raw", "png", "zlib"], f"Unknown label format: {label_format}"
       # TODO: fix this, I couldn't get the above 2 lines to work, so for now hardcoding for my scenario.
-      label_format = "zlib"
       return_dict['label'] = self._decode_label(parsed_tensors,
-                                                common.KEY_ENCODED_LABEL, label_format)
+                                                common.KEY_ENCODED_LABEL, self.label_format)
     if self._is_video_dataset:
       return_dict['sequence'] = parsed_tensors[common.KEY_SEQUENCE_ID]
     if self._use_two_frames:
@@ -412,7 +413,7 @@ class SegmentationDecoder(object):
           parsed_tensors, common.KEY_ENCODED_NEXT_IMAGE)
       if self._decode_groundtruth_label:
         return_dict['next_label'] = self._decode_label(
-            parsed_tensors, common.KEY_ENCODED_NEXT_LABEL, label_format="zlib")
+            parsed_tensors, common.KEY_ENCODED_NEXT_LABEL, label_format=self.label_format)
     if self._is_depth_dataset and self._decode_groundtruth_label:
       return_dict['depth'] = self._decode_label(
           parsed_tensors, common.KEY_ENCODED_DEPTH)
@@ -425,10 +426,12 @@ class VideoKMaxDecoder(object):
   def __init__(self,
                is_panoptic_dataset=True,
                is_video_dataset=True,
-               decode_groundtruth_label=True):
+               decode_groundtruth_label=True,
+               label_format="zlib"):
     self._is_panoptic_dataset = is_panoptic_dataset
     self._is_video_dataset = is_video_dataset
     self._decode_groundtruth_label = decode_groundtruth_label
+    self.label_format = label_format
     string_feature = tf.io.FixedLenFeature((), tf.string)
     int_feature = tf.io.FixedLenFeature((), tf.int64)
     self._keys_to_features = {
@@ -504,9 +507,8 @@ class VideoKMaxDecoder(object):
       # label_format = parsed_tensors[common.KEY_LABEL_FORMAT].eval().decode()
       # assert label_format in ["raw", "png", "zlib"], f"Unknown label format: {label_format}"
       # TODO: fix this, I couldn't get the above 2 lines to work, so for now hardcoding for my scenario.
-      label_format = "zlib"
       return_dict['label'] = self._decode_label(parsed_tensors,
-                                                common.KEY_ENCODED_LABEL, label_format)
+                                                common.KEY_ENCODED_LABEL, self.label_format)
     if self._is_video_dataset:
       return_dict['sequence'] = parsed_tensors[common.KEY_SEQUENCE_ID]
 
@@ -514,7 +516,7 @@ class VideoKMaxDecoder(object):
     return_dict['image'] = tf.concat([return_dict['image'], next_image], axis=0)
 
     if self._decode_groundtruth_label:
-      next_label = self._decode_label(parsed_tensors, common.KEY_ENCODED_NEXT_LABEL, label_format="zlib")
+      next_label = self._decode_label(parsed_tensors, common.KEY_ENCODED_NEXT_LABEL, label_format=self.label_format)
       return_dict['label'] = tf.concat([return_dict['label'], next_label], axis=0)
 
     return return_dict

@@ -5,10 +5,21 @@ from deeplab2.data import data_utils, dataset as deeplab_dataset, sample_generat
 from deeplab2.trainer import distribution_utils, runner_utils
 import tensorflow as tf
 import orbit
+import time
+
+
+def measure_op(operation):
+    start = time.perf_counter()
+    result = operation()
+    end = time.perf_counter()
+    return result, end-start
 
 def main():
     is_training = True
     sample_input_file_path = "/home/pkadubandi/data/waymo-open-dataset/v_2_0_0/training/vip_deeplab_format/15795616688853411272_1245_000_1265_000.tfrecord"
+    label_format = "zlib"
+    # sample_input_file_path = "/home/pkadubandi/data/waymo-open-dataset/v_2_0_0/training/image_with_seg_tfrecords/15795616688853411272_1245_000_1265_000.tfrecord"
+    # label_format = "png"
     dataset_config = config_pb2.DatasetOptions(
         dataset="wod_pvps_image_panoptic_seg",
         file_pattern=[sample_input_file_path],
@@ -26,7 +37,8 @@ def main():
     decoder = data_utils.VideoKMaxDecoder(
         is_panoptic_dataset=True,
         is_video_dataset=dataset_info.is_video_dataset,
-        decode_groundtruth_label=dataset_config.decode_groundtruth_label)
+        decode_groundtruth_label=dataset_config.decode_groundtruth_label,
+        label_format=label_format)
 
     augmentation_options = dataset_config.augmentations
     if augmentation_options.HasField('panoptic_copy_paste'):
@@ -53,17 +65,33 @@ def main():
     generator = sample_generator.PanopticSampleGenerator(**generator_kwargs)
 
     dataset = tf.data.TFRecordDataset([sample_input_file_path])
-    dataset = dataset.take(1)
+    n_samples = 10
+    dataset = dataset.take(n_samples)
     iterator = tf.nest.map_structure(iter, dataset)
-    example = next(iterator)
-    example = decoder(example)
-    example = generator(example)
+    dataset_iter_time = 0.0
+    decoder_time = 0.0
+    generator_time = 0.0
+    while True:
+        try:
+            example, op_time = measure_op(lambda: next(iterator))
+            dataset_iter_time += op_time
+        except StopIteration:
+            break
+        example, op_time = measure_op(lambda: decoder(example))
+        decoder_time += op_time
+        # print (f"Original image shape: {example['image'].shape}")
+        # print (f"Image name: {example['image_name']}")
+        example, op_time = measure_op(lambda: generator(example))
+        generator_time += op_time
 
-    shapes = {}
-    for key, value in example.items():
-        shapes[key] = list(value.shape)
-    print (shapes)        
+        # shapes = {}
+        # for key, value in example.items():
+        #     shapes[key] = list(value.shape)
+        # print (shapes)
+
+    print (f"Average Dataset iterator time: {dataset_iter_time / n_samples}")
+    print (f"Average Decoder time: {decoder_time / n_samples}")
+    print (f"Average Generator time: {generator_time / n_samples}")    
     
 if __name__ == '__main__':
-    tf.compat.v1.enable_eager_execution()
     main()
