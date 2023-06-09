@@ -67,6 +67,7 @@ FLAGS = flags.FLAGS
 
 def main(_):
   start = time.time()
+  tf.profiler.experimental.server.start(6009)
   try:
     logging.info('Reading the config file.')
     with tf.io.gfile.GFile(FLAGS.config_file, 'r') as proto_file:
@@ -76,8 +77,10 @@ def main(_):
     combined_model_dir = os.path.join(FLAGS.model_dir, config.experiment_name)
     os.makedirs(combined_model_dir, exist_ok=True)
     config_file_name = os.path.basename(FLAGS.config_file)
-    if not os.path.exists(os.path.join(combined_model_dir, config_file_name)):
-        shutil.copy(FLAGS.config_file, combined_model_dir)
+    if os.path.exists(os.path.join(combined_model_dir, config_file_name)):
+        logging.warning('Config file already exists in the model directory. '
+                        'Overwriting the existing config file in the model directory with the selected config file.')
+    shutil.copy(FLAGS.config_file, combined_model_dir)
     train_lib.run_experiment(FLAGS.mode, config, combined_model_dir, FLAGS.master,
                             FLAGS.num_gpus)
   finally:
