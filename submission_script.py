@@ -34,7 +34,7 @@ camera_left_to_right_order = [open_dataset.CameraName.SIDE_LEFT,
                               open_dataset.CameraName.FRONT_RIGHT,
                               open_dataset.CameraName.SIDE_RIGHT]
 wod_source_folder = "/home/pkadubandi/GH/waymo-research/waymo-open-dataset"
-predictions_root = "/home/pkadubandi/GH/PradeepKadubandi/waymo-challenge/saved_experiments/lamda-vm-1/pk-lambda-vip-deeplab-expt-5-half-crop-batch-8-tf12/submission_predictions/camera_stitched_panoptic"
+predictions_root = "/home/pkadubandi/GH/PradeepKadubandi/waymo-challenge/saved_experiments/lamda-vm-1/pk-video-kmax-expt-6-convnextL-quarter-crop-4-batch/submission_test_set_eval_at_half_crop/video_stiched_panoptic_almost_final"
 
 submission_type = 'testing'
 TEST_SET_SOURCE = os.path.join(wod_source_folder, 'tutorial/2d_pvps_test_frames.txt') #@param {type: "string"} 
@@ -42,8 +42,8 @@ TEST_SET_SOURCE = os.path.join(wod_source_folder, 'tutorial/2d_pvps_test_frames.
 SAVE_FOLDER = os.path.join(wod_source_folder, 'submissions', submission_type) #@param {type: "string"}
 
 submission_account_name = 'pkadubandi@gmail.com'
-submission_method_name = 'ViP DeepLab with video and panoramic stitching'
-submission_description = 'Train ViP Deeplab method at batch size 8 (due to limited training compute) and do video and panoramic stitching'
+submission_method_name = 'Clip KMax with Video Stitching'
+submission_description = 'Train Clip KMax model (Video KMax without HiLa MB) at batch size 4 and quarter crop size of clip (due to limited training compute) and do video stitching only (no panoramic stitching)'
 # end of global variables
 
 def _make_submission_proto() -> submission_pb2.CameraSegmentationSubmission:
