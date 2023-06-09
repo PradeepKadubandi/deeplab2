@@ -1,6 +1,6 @@
 # Meant to debug the data decoder and generator code.
 
-from deeplab2 import config_pb2
+from deeplab2 import common, config_pb2
 from deeplab2.data import data_utils, dataset as deeplab_dataset, sample_generator
 from deeplab2.trainer import distribution_utils, runner_utils
 import tensorflow as tf
@@ -65,12 +65,12 @@ def main():
     generator = sample_generator.PanopticSampleGenerator(**generator_kwargs)
 
     dataset = tf.data.TFRecordDataset([sample_input_file_path])
-    n_samples = 10
-    dataset = dataset.take(n_samples)
+    max_samples = None
     iterator = tf.nest.map_structure(iter, dataset)
     dataset_iter_time = 0.0
     decoder_time = 0.0
     generator_time = 0.0
+    sample_count = 0
     while True:
         try:
             example, op_time = measure_op(lambda: next(iterator))
@@ -84,14 +84,23 @@ def main():
         example, op_time = measure_op(lambda: generator(example))
         generator_time += op_time
 
+        # To observe the shapes of all key value pairs
         # shapes = {}
         # for key, value in example.items():
         #     shapes[key] = list(value.shape)
         # print (shapes)
 
-    print (f"Average Dataset iterator time: {dataset_iter_time / n_samples}")
-    print (f"Average Decoder time: {decoder_time / n_samples}")
-    print (f"Average Generator time: {generator_time / n_samples}")    
+        # Inspect the thing id mask
+        instance_ids, _, instance_counts = tf.unique_with_counts(tf.reshape(example[common.GT_THING_ID_MASK_KEY], [-1]))
+        print (f"Instance counts: {dict(zip(instance_ids.numpy(), instance_counts.numpy()))}")
+        sample_count += 1
+        if max_samples != None and sample_count >= max_samples:
+            break
+
+    print (f"Total samples: {sample_count}")
+    print (f"Average Dataset iterator time: {dataset_iter_time / sample_count}")
+    print (f"Average Decoder time: {decoder_time / sample_count}")
+    print (f"Average Generator time: {generator_time / sample_count}")    
     
 if __name__ == '__main__':
     main()
