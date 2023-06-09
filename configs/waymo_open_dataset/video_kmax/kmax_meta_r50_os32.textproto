@@ -23,7 +23,7 @@
 # Use a unique experiment_name for each experiment.
 experiment_name: "pk-video-kmax-trial-eval-1-r50"
 model_options {
-  initial_checkpoint: "/home/pkadubandi/GH/PradeepKadubandi/waymo-challenge/pretrained_checkpoints/resnet50_imagenet1k_strong_training_strategy/ckpt-350.index"
+  initial_checkpoint: "/home/pkadubandi/GH/PradeepKadubandi/waymo-challenge/pretrained_checkpoints/resnet50_imagenet1k_strong_training_strategy/ckpt-350"
   # restore_semantic_last_layer_from_initial_checkpoint: true
   backbone {
     # kMaX meta is used with the prefix "kmax_".
@@ -113,8 +113,8 @@ train_dataset_options {
       panoptic_copy_paste_void_option: "none"
     }
   }
-  increase_small_instance_weights: false
-  small_instance_weight: 1.0
+  increase_small_instance_weights: true
+  small_instance_weight: 3.0
   thing_id_mask_annotations: true
   max_thing_id: 256
   use_height_concat: true
@@ -131,8 +131,8 @@ eval_dataset_options {
   max_resize_value: 641
   max_resize_value: 481
   # Add options to make the evaluation loss comparable to the training loss.
-  increase_small_instance_weights: false
-  small_instance_weight: 1.0
+  increase_small_instance_weights: true
+  small_instance_weight: 3.0
   thing_id_mask_annotations: true
   max_thing_id: 256
   use_height_concat: true

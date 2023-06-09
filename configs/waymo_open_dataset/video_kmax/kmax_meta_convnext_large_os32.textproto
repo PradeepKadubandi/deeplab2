@@ -20,8 +20,8 @@
 # - Qihang Yu, et al. "k-means Mask Transformer." In ECCV, 2022.
 
 # Use a unique experiment_name for each experiment.
-# experiment_name: "pk-video-kmax-expt-1-convnextL"
-experiment_name: "pk-video-kmax-debug-1-convnextL"
+experiment_name: "pk-video-kmax-expt-3-convnextL"
+# experiment_name: "pk-video-kmax-profile-1-convnextL"
 model_options {
   restore_semantic_last_layer_from_initial_checkpoint: false
   backbone {
@@ -30,7 +30,7 @@ model_options {
     drop_path_keep_prob: 0.3
     # We use pretrained_weights instead of initial_checkpoint for loading
     # specifical weights for backbone (e.g., converted pytorch weights).
-    pretrained_weights: "/home/pkadubandi/GH/PradeepKadubandi/waymo-challenge/pretrained_checkpoints/convnext_large_imagenet_22k_1k_384/convnext_large_21k_1k_384.index"
+    pretrained_weights: "/home/pkadubandi/GH/PradeepKadubandi/waymo-challenge/pretrained_checkpoints/convnext_large_imagenet_22k_1k_384/convnext_large_21k_1k_384"
   }
   decoder {
     feature_key: "feature_semantic"
@@ -84,7 +84,7 @@ trainer_options {
   }
   solver_options {
     base_learning_rate: 0.0005
-    training_number_of_steps: 10000
+    training_number_of_steps: 100000
     warmup_steps: 5000
     backbone_learning_rate_multiplier: 0.1
     optimizer: "adamw"
@@ -115,8 +115,8 @@ train_dataset_options {
       panoptic_copy_paste_void_option: "none"
     }
   }
-  increase_small_instance_weights: false
-  small_instance_weight: 1.0
+  increase_small_instance_weights: true
+  small_instance_weight: 3.0
   thing_id_mask_annotations: true
   max_thing_id: 256
   use_height_concat: true
@@ -133,8 +133,8 @@ eval_dataset_options {
   max_resize_value: 641
   max_resize_value: 481
   # Add options to make the evaluation loss comparable to the training loss.
-  increase_small_instance_weights: false
-  small_instance_weight: 1.0
+  increase_small_instance_weights: true
+  small_instance_weight: 3.0
   thing_id_mask_annotations: true
   max_thing_id: 256
   use_height_concat: true
@@ -154,7 +154,7 @@ evaluator_options {
   }
   save_predictions: true
   save_raw_predictions: true
-  eval_steps: 100
+  eval_steps: 1000
   convert_raw_to_eval_ids: false
   raw_panoptic_format: "three_channel_png"
 }
