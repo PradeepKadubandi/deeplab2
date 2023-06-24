@@ -21,7 +21,7 @@
       Chenglin Yang, Siyuan Qiao, Qihang Yu, Xiaoding Yuan,
       Yukun Zhu, Alan Yuille, Hartwig Adam, Liang-Chieh Chen.
 """
-
+from typing import List, Dict
 import copy
 import re
 from typing import Optional, Any
@@ -208,7 +208,7 @@ class MOAT(tf.keras.Model):
           survival_prob=survival_prob)
     return local_block_config
 
-  def build(self, input_shape: list[int]) -> None:
+  def build(self, input_shape: List[int]) -> None:
     norm_class = tf.keras.layers.experimental.SyncBatchNormalization
     self._config.norm_class = norm_class
     self._config.activation = tf.nn.gelu
@@ -346,11 +346,11 @@ no_relative_pe = Config(
 
 def get_model(
     name: str,
-    input_shape: list[int],
-    window_size: Optional[list[list[int]]] = None,
+    input_shape: List[int],
+    window_size: Optional[List[List[int]]] = None,
     survival_rate: Optional[float] = None,
     pool_size: Optional[int] = 3,
-    override_config: Optional[dict[str, Any]] = None,
+    override_config: Optional[Dict[str, Any]] = None,
     pretrained_weights_path: Optional[str] = None,
     remove_position_embedding: Optional[bool] = None,
     return_config: Optional[bool] = False,

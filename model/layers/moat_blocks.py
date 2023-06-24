@@ -33,7 +33,7 @@ The MBConv implementation is based on CoAtNet [3].
     NeurIPS 2021.
       Zihang Dai, Hanxiao Liu, Quoc V. Le, Mingxing Tan.
 """
-
+from typing import List
 import math
 import tensorflow as tf
 from deeplab2.model.layers.moat_attention import Attention
@@ -201,7 +201,7 @@ class MBConvBlock(tf.keras.layers.Layer):
     self._activation_fn = self._config.activation
     self._norm_class = self._config.norm_class
 
-  def build(self, input_shape: list[int]) -> None:
+  def build(self, input_shape: List[int]) -> None:
     input_size = input_shape[-1]
     inner_size = self._config.hidden_size * self._config.expansion_rate
 
@@ -378,7 +378,7 @@ class MOATBlock(tf.keras.layers.Layer):
     self._activation_fn = self._config.activation
     self._norm_class = self._config.norm_class
 
-  def build(self, input_shape: list[int]) -> None:
+  def build(self, input_shape: List[int]) -> None:
     height, width, input_size = input_shape[-3:]
     inner_size = self._config.hidden_size * self._config.expansion_rate
 
